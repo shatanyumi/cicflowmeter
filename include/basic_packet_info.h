@@ -141,6 +141,12 @@ public:
         this->payload_bytes = payload_bytes;
     }
 
+    uint64_t get_payload_packets()
+    {
+        this->payload_packets += 1;
+        return this->payload_packets;
+    }
+
     uint64_t get_header_bytes() const
     {
         return header_bytes;

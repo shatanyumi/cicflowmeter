@@ -683,6 +683,197 @@ public:
         return dump;
     }
 
+    std::string dump_flow_based_features_ex()
+    {
+        std::string dump = new std::string();
+
+        dump.append(get_flow_id()).append(separator);                  // 1
+        dump.append(get_src()).append(separator);                      // 2
+        dump.append(std::to_string(get_src_port())).append(separator); // 3
+        dump.append(get_dst()).append(separator);                      // 4
+        dump.append(std::to_string(get_dst_port())).append(separator); // 5
+        dump.append(std::to_string(get_protocol())).append(separator); // 6
+
+        // String starttime = DateFormatter.convertMilliseconds2String(flowStartTime / 1000L, "dd/MM/yyyy hh:mm:ss a");
+        dump.append(std::to_string(get_flow_start_time())).append(separator); // 7
+
+        uint64_t flow_duration = get_flow_last_seen() - get_flow_start_time();
+        dump.append(std::to_string(flow_duration)).append(separator); // 8
+
+        dump.append(std::to_string(fwd_pkt_stats.get_n())).append(separator);   // 9
+        dump.append(std::to_string(bwd_pkt_stats.get_n())).append(separator);   // 10
+        dump.append(std::to_string(fwd_pkt_stats.get_sum())).append(separator); // 11
+        dump.append(std::to_string(bwd_pkt_stats.get_sum())).append(separator); // 12
+
+        if (fwd_pkt_stats.get_n() > 0L)
+        {
+            dump.append(std::to_string(fwd_pkt_stats.get_max())).append(separator);  // 13
+            dump.append(std::to_string(fwd_pkt_stats.get_min())).append(separator);  // 14
+            dump.append(std::to_string(fwd_pkt_stats.get_mean())).append(separator); // 15
+            dump.append(std::to_string(fwd_pkt_stats.get_std())).append(separator);  // 16
+        }
+        else
+        {
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+        }
+
+        if (bwd_pkt_stats.get_n() > 0L)
+        {
+            dump.append(std::to_string(bwd_pkt_stats.get_max())).append(separator);  // 17
+            dump.append(std::to_string(bwd_pkt_stats.get_min())).append(separator);  // 18
+            dump.append(std::to_string(bwd_pkt_stats.get_mean())).append(separator); // 19
+            dump.append(std::to_string(bwd_pkt_stats.get_std())).append(separator);  // 20
+        }
+        else
+        {
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+        }
+        dump.append(std::to_string(((double)(fwd_bytes + bwd_bytes)) / ((double)flow_duration / 1000000L))).append(separator); // 21
+        dump.append(std::to_string(((double)packet_count()) / ((double)flow_duration / 1000000L))).append(separator);          // 22
+        dump.append(std::to_string(flow_IAT.get_mean())).append(separator);                                                    // 23
+        dump.append(std::to_string(flow_IAT.get_std())).append(separator);                                                     // 24
+        dump.append(std::to_string(flow_IAT.get_max())).append(separator);                                                     // 25
+        dump.append(std::to_string(flow_IAT.get_min())).append(separator);                                                     // 26
+
+        if (this.forward.size() > 1)
+        {
+            dump.append(std::to_string(fwd_IAT.get_sum())).append(separator);  // 27
+            dump.append(std::to_string(fwd_IAT.get_mean())).append(separator); // 28
+            dump.append(std::to_string(fwd_IAT.get_std())).append(separator);  // 29
+            dump.append(std::to_string(fwd_IAT.get_max())).append(separator);  // 30
+            dump.append(std::to_string(fwd_IAT.get_min())).append(separator);  // 31
+        }
+        else
+        {
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+        }
+        if (this.backward.size() > 1)
+        {
+            dump.append(std::to_string(bwd_IAT.get_sum())).append(separator);  // 32
+            dump.append(std::to_string(bwd_IAT.get_mean())).append(separator); // 33
+            dump.append(std::to_string(bwd_IAT.get_std())).append(separator);  // 34
+            dump.append(std::to_string(bwd_IAT.get_max())).append(separator);  // 35
+            dump.append(std::to_string(bwd_IAT.get_min())).append(separator);  // 36
+        }
+        else
+        {
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+        }
+
+        dump.append(std::to_string(fwd_psh_cnt)).append(separator); // 37
+        dump.append(std::to_string(bwd_psh_cnt)).append(separator); // 38
+        dump.append(std::to_string(fwd_urg_cnt)).append(separator); // 39
+        dump.append(std::to_string(bwd_urg_cnt)).append(separator); // 40
+
+        dump.append(std::to_string(fwd_header_bytes)).append(separator);         // 41
+        dump.append(std::to_string(bwd_header_bytes)).append(separator);         // 42
+        dump.append(std::to_string(get_fwd_pkt_per_second())).append(separator); // 43
+        dump.append(std::to_string(get_bwd_pkt_per_second())).append(separator); // 44
+
+        if (this.forward.size() > 0 || this.backward.size() > 0)
+        {
+            dump.append(std::to_string(flow_length_stats.get_min())).append(separator);      // 45
+            dump.append(std::to_string(flow_length_stats.get_max())).append(separator);      // 46
+            dump.append(std::to_string(flow_length_stats.get_mean())).append(separator);     // 47
+            dump.append(std::to_string(flow_length_stats.get_std())).append(separator);      // 48
+            dump.append(std::to_string(flow_length_stats.get_variance())).append(separator); // 49
+        }
+        else
+        { // seem to less one
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+        }
+
+        /*for(MutableInt v:flagCounts.values()) {
+            dump.append(v).append(separator);
+        }
+        for(String key: flagCounts.keySet()){
+            dump.append(flagCounts.get(key).value).append(separator);				//50,51,52,53,54,55,56,57
+        } */
+        dump.append(std::to_string(flag_counts["FIN"].value)).append(separator); // 50
+        dump.append(std::to_string(flag_counts["SYN"].value)).append(separator); // 51
+        dump.append(std::to_string(flag_counts["RST"].value)).append(separator); // 52
+        dump.append(std::to_string(flag_counts["PSH"].value)).append(separator); // 53
+        dump.append(std::to_string(flag_counts["ACK"].value)).append(separator); // 54
+        dump.append(std::to_string(flag_counts["URG"].value)).append(separator); // 55
+        dump.append(std::to_string(flag_counts["CWR"].value)).append(separator); // 56
+        dump.append(std::to_string(flag_counts["ECE"].value)).append(separator); // 57
+
+        dump.append(std::to_string(get_down_up_ratio())).append(separator);        // 58
+        dump.append(std::to_string(get_avg_pkt_size())).append(separator);         // 59
+        dump.append(std::to_string(get_fwd_avg_segment_size())).append(separator); // 60
+        dump.append(std::to_string(get_bwd_avg_segment_size())).append(separator); // 61
+        // dump.append(fHeaderBytes).append(separator);								//62 dupicate with 41
+
+        dump.append(std::to_string(fwd_avg_bytes_per_bulk())).append(separator);   // 63
+        dump.append(std::to_string(fwd_avg_packets_per_bulk())).append(separator); // 64
+        dump.append(std::to_string(fwd_avg_bulk_rate())).append(separator);        // 65
+        dump.append(std::to_string(bwd_avg_bytes_per_bulk())).append(separator);   // 66
+        dump.append(std::to_string(bwd_avg_packets_per_bulk())).append(separator); // 67
+        dump.append(std::to_string(bwd_avg_bulk_rate())).append(separator);        // 68
+
+        dump.append(std::to_string(get_subflow_fwd_packets())).append(separator); // 69
+        dump.append(std::to_string(get_subflow_fwd_bytes())).append(separator);   // 70
+        dump.append(std::to_string(get_subflow_bwd_packets())).append(separator); // 71
+        dump.append(std::to_string(get_subflow_bwd_bytes())).append(separator);   // 72
+
+        dump.append(std::to_string(init_win_bytes_fwd)).append(separator); // 73
+        dump.append(std::to_string(init_win_bytes_bwd)).append(separator); // 74
+        dump.append(std::to_string(act_data_pkt_fwd)).append(separator);   // 75
+        dump.append(std::to_string(min_seg_size_fwd)).append(separator);   // 76
+
+        if (this.flow_active.get_n() > 0)
+        {
+            dump.append(std::to_string(flow_active.get_mean())).append(separator); // 77
+            dump.append(std::to_string(flow_active.get_std())).append(separator);  // 78
+            dump.append(std::to_string(flow_active.get_max())).append(separator);  // 79
+            dump.append(std::to_string(flow_active.get_min())).append(separator);  // 80
+        }
+        else
+        {
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+        }
+
+        if (this.flow_idle.get_n() > 0)
+        {
+            dump.append(std::to_string(flow_idle.get_mean())).append(separator); // 81
+            dump.append(std::to_string(flow_idle.get_std())).append(separator);  // 82
+            dump.append(std::to_string(flow_idle.get_max())).append(separator);  // 83
+            dump.append(std::to_string(flow_idle.get_min())).append(separator);  // 84
+        }
+        else
+        {
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+            dump.append("0").append(separator);
+        }
+
+        dump.append(get_label());
+
+        return dump;
+    }
+
     void set_label(const std::string &label) { this->label = label; }
     std::string get_label() { return this->label; }
 

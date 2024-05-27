@@ -8,12 +8,12 @@ TEST(BasicFlowTest, ConstructorTest)
     BasicPacketInfo packet("192.168.1.1", "192.168.1.2", 12345, 80, 6, 1000);
     BasicFlow flow(true, packet);
 
-    EXPECT_EQ(flow.src, "192.168.1.1");
-    EXPECT_EQ(flow.dst, "192.168.1.2");
-    EXPECT_EQ(flow.src_port, 12345);
-    EXPECT_EQ(flow.dst_port, 80);
-    EXPECT_EQ(flow.protocol, 6);
-    EXPECT_EQ(flow.flow_start_time, 1000);
+    EXPECT_EQ(flow.get_src(), "192.168.1.1");
+    EXPECT_EQ(flow.get_dst(), "192.168.1.2");
+    EXPECT_EQ(flow.get_src_port(), 12345);
+    EXPECT_EQ(flow.get_dst_port(), 80);
+    EXPECT_EQ(flow.get_protocol(), 6);
+    EXPECT_EQ(flow.get_flow_start_time(), 1000);
 }
 
 // Test case to check the addition of packets and calculation of statistics
@@ -26,7 +26,7 @@ TEST(BasicFlowTest, AddPacketTest)
 
     EXPECT_EQ(flow.fwd_pkt_stats.get_n(), 1);
     EXPECT_EQ(flow.bwd_pkt_stats.get_n(), 1);
-    EXPECT_EQ(flow.flow_end_time - flow.flow_start_time, 1000);
+    EXPECT_EQ(flow.get_duration(), 1000);
 }
 
 // Test case to check the dumping of flow-based features
@@ -51,8 +51,8 @@ TEST(BasicFlowTest, FlagHandlingTest)
     BasicFlow flow(true, packet);
 
     EXPECT_EQ(flow.get_flag_count("FIN"), 1);
-    EXPECT_EQ(flow.getFlagCount("SYN"), 0);
-    EXPECT_EQ(flow.getFlagCount("RST"), 0);
+    EXPECT_EQ(flow.get_flag_count("SYN"), 0);
+    EXPECT_EQ(flow.get_flag_count("RST"), 0);
 }
 
 // Test case to check the subflow and bulk features
@@ -61,7 +61,7 @@ TEST(BasicFlowTest, SubflowBulkFeaturesTest)
     BasicPacketInfo packet1("192.168.1.1", "192.168.1.2", 12345, 80, 6, 1000);
     BasicPacketInfo packet2("192.168.1.2", "192.168.1.1", 80, 12345, 6, 2000);
     BasicFlow flow(true, packet1);
-    flow.addPacket(packet2);
+    flow.add_packet(packet2);
 
     EXPECT_GT(flow.get_subflow_fwd_bytes(), 0);
     EXPECT_GT(flow.get_subflow_fwd_packets(), 0);

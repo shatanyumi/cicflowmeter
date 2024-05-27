@@ -91,6 +91,7 @@ public:
 
 class BasicFlow
 {
+private:
     static constexpr char separator = ',';
     SummaryStatistics fwd_pkt_stats;
     SummaryStatistics bwd_pkt_stats;
@@ -159,6 +160,9 @@ class BasicFlow
     uint64_t bwd_bulk_start_helper = 0;
     uint64_t bwd_bulk_size_helper = 0;
     uint64_t bwd_bulk_last_timestamp = 0;
+
+    /*******************************************/
+    std::string label;
 
 public:
     BasicFlow(bool isBidirectional, BasicPacketInfo &packet, const std::string &flow_src, const std::string &flow_dst, int src_port, int dst_port, int protocol)
@@ -350,6 +354,10 @@ public:
         }
     }
 
+    uint64_t get_duration()
+    {
+        return flow_last_seen - flow_start_time;
+    }
     double get_bwd_pkt_per_second()
     {
         uint64_t duration = this->flow_last_seen - this->flow_start_time;
@@ -675,10 +683,232 @@ public:
         return dump;
     }
 
-    std::string get_label()
-    {
-        return "No Label";
-    }
+    void set_label(const std::string &label) { this->label = label; }
+    std::string get_label() { return this->label; }
+
+    // Getter and Setter for fwd_pkt_stats
+    SummaryStatistics get_fwd_pkt_stats() const { return fwd_pkt_stats; }
+    void set_fwd_pkt_stats(const SummaryStatistics &stats) { fwd_pkt_stats = stats; }
+
+    // Getter and Setter for bwd_pkt_stats
+    SummaryStatistics get_bwd_pkt_stats() const { return bwd_pkt_stats; }
+    void set_bwd_pkt_stats(const SummaryStatistics &stats) { bwd_pkt_stats = stats; }
+
+    // Getter and Setter for forward
+    std::vector<BasicPacketInfo> get_forward() const { return forward; }
+    void set_forward(const std::vector<BasicPacketInfo> &packets) { forward = packets; }
+
+    // Getter and Setter for backward
+    std::vector<BasicPacketInfo> get_backward() const { return backward; }
+    void set_backward(const std::vector<BasicPacketInfo> &packets) { backward = packets; }
+
+    // Getter and Setter for fwd_bytes
+    uint64_t get_fwd_bytes() const { return fwd_bytes; }
+    void set_fwd_bytes(uint64_t bytes) { fwd_bytes = bytes; }
+
+    // Getter and Setter for bwd_bytes
+    uint64_t get_bwd_bytes() const { return bwd_bytes; }
+    void set_bwd_bytes(uint64_t bytes) { bwd_bytes = bytes; }
+
+    // Getter and Setter for fwd_header_bytes
+    uint64_t get_fwd_header_bytes() const { return fwd_header_bytes; }
+    void set_fwd_header_bytes(uint64_t bytes) { fwd_header_bytes = bytes; }
+
+    // Getter and Setter for bwd_header_bytes
+    uint64_t get_bwd_header_bytes() const { return bwd_header_bytes; }
+    void set_bwd_header_bytes(uint64_t bytes) { bwd_header_bytes = bytes; }
+
+    // Getter and Setter for is_bidirectional
+    bool get_is_bidirectional() const { return is_bidirectional; }
+    void set_is_bidirectional(bool bidirectional) { is_bidirectional = bidirectional; }
+
+    // Getter and Setter for flag_counts
+    int get_flag_counts(const std::string &key) const { return flag_counts[key].get(); }
+    void set_flag_counts(const std::string &key) { flag_counts[key].increment(); }
+
+    // Getter and Setter for fwd_psh_cnt
+    int get_fwd_psh_cnt() const { return fwd_psh_cnt; }
+    void set_fwd_psh_cnt(int cnt) { fwd_psh_cnt = cnt; }
+
+    // Getter and Setter for bwd_psh_cnt
+    int get_bwd_psh_cnt() const { return bwd_psh_cnt; }
+    void set_bwd_psh_cnt(int cnt) { bwd_psh_cnt = cnt; }
+
+    // Getter and Setter for fwd_urg_cnt
+    int get_fwd_urg_cnt() const { return fwd_urg_cnt; }
+    void set_fwd_urg_cnt(int cnt) { fwd_urg_cnt = cnt; }
+
+    // Getter and Setter for bwd_urg_cnt
+    int get_bwd_urg_cnt() const { return bwd_urg_cnt; }
+    void set_bwd_urg_cnt(int cnt) { bwd_urg_cnt = cnt; }
+
+    // Getter and Setter for act_data_pkt_fwd
+    uint64_t get_act_data_pkt_fwd() const { return act_data_pkt_fwd; }
+    void set_act_data_pkt_fwd(uint64_t data_pkt) { act_data_pkt_fwd = data_pkt; }
+
+    // Getter and Setter for min_seg_size_fwd
+    uint64_t get_min_seg_size_fwd() const { return min_seg_size_fwd; }
+    void set_min_seg_size_fwd(uint64_t seg_size) { min_seg_size_fwd = seg_size; }
+
+    // Getter and Setter for init_win_bytes_fwd
+    uint64_t get_init_win_bytes_fwd() const { return init_win_bytes_fwd; }
+    void set_init_win_bytes_fwd(uint64_t win_bytes) { init_win_bytes_fwd = win_bytes; }
+
+    // Getter and Setter for init_win_bytes_bwd
+    uint64_t get_init_win_bytes_bwd() const { return init_win_bytes_bwd; }
+    void set_init_win_bytes_bwd(uint64_t win_bytes) { init_win_bytes_bwd = win_bytes; }
+
+    // Getter and Setter for src
+    std::string get_src() const { return src; }
+    void set_src(const std::string &source) { src = source; }
+
+    // Getter and Setter for dst
+    std::string get_dst() const { return dst; }
+    void set_dst(const std::string &destination) { dst = destination; }
+
+    // Getter and Setter for src_port
+    int get_src_port() const { return src_port; }
+    void set_src_port(int port) { src_port = port; }
+
+    // Getter and Setter for dst_port
+    int get_dst_port() const { return dst_port; }
+    void set_dst_port(int port) { dst_port = port; }
+
+    // Getter and Setter for protocol
+    int get_protocol() const { return protocol; }
+    void set_protocol(int prot) { protocol = prot; }
+
+    // Getter and Setter for flow_start_time
+    uint64_t get_flow_start_time() const { return flow_start_time; }
+    void set_flow_start_time(uint64_t start_time) { flow_start_time = start_time; }
+
+    // Getter and Setter for flow_end_time
+    uint64_t get_flow_end_time() const { return flow_end_time; }
+    void set_flow_end_time(uint64_t end_time) { flow_end_time = end_time; }
+
+    // Getter and Setter for start_active_time
+    uint64_t get_start_active_time() const { return start_active_time; }
+    void set_start_active_time(uint64_t active_time) { start_active_time = active_time; }
+
+    // Getter and Setter for end_active_time
+    uint64_t get_end_active_time() const { return end_active_time; }
+    void set_end_active_time(uint64_t active_time) { end_active_time = active_time; }
+
+    // Getter and Setter for flow_id
+    std::string get_flow_id() const { return flow_id; }
+    void set_flow_id(const std::string &id) { flow_id = id; }
+
+    // Getter and Setter for flow_iat
+    SummaryStatistics get_flow_iat() const { return flow_iat; }
+    void set_flow_iat(const SummaryStatistics &iat) { flow_iat = iat; }
+
+    // Getter and Setter for fwd_iat
+    SummaryStatistics get_fwd_iat() const { return fwd_iat; }
+    void set_fwd_iat(const SummaryStatistics &iat) { fwd_iat = iat; }
+
+    // Getter and Setter for bwd_iat
+    SummaryStatistics get_bwd_iat() const { return bwd_iat; }
+    void set_bwd_iat(const SummaryStatistics &iat) { bwd_iat = iat; }
+
+    // Getter and Setter for flow_length_stats
+    SummaryStatistics get_flow_length_stats() const { return flow_length_stats; }
+    void set_flow_length_stats(const SummaryStatistics &stats) { flow_length_stats = stats; }
+
+    // Getter and Setter for flow_active
+    SummaryStatistics get_flow_active() const { return flow_active; }
+    void set_flow_active(const SummaryStatistics &active) { flow_active = active; }
+
+    // Getter and Setter for flow_idle
+    SummaryStatistics get_flow_idle() const { return flow_idle; }
+    void set_flow_idle(const SummaryStatistics &idle) { flow_idle = idle; }
+
+    // Getter and Setter for flow_last_seen
+    uint64_t get_flow_last_seen() const { return flow_last_seen; }
+    void set_flow_last_seen(uint64_t last_seen) { flow_last_seen = last_seen; }
+
+    // Getter and Setter for fwd_last_seen
+    uint64_t get_fwd_last_seen() const { return fwd_last_seen; }
+    void set_fwd_last_seen(uint64_t last_seen) { fwd_last_seen = last_seen; }
+
+    // Getter and Setter for bwd_last_seen
+    uint64_t get_bwd_last_seen() const { return bwd_last_seen; }
+    void set_bwd_last_seen(uint64_t last_seen) { bwd_last_seen = last_seen; }
+
+    // Getter and Setter for subflow_last_packet_timestamp
+    uint64_t get_subflow_last_packet_timestamp() const { return subflow_last_packet_timestamp; }
+    void set_subflow_last_packet_timestamp(uint64_t timestamp) { subflow_last_packet_timestamp = timestamp; }
+
+    // Getter and Setter for subflow_count
+    int get_subflow_count() const { return subflow_count; }
+    void set_subflow_count(int count) { subflow_count = count; }
+
+    // Getter and Setter for subflow_ac_helper
+    uint64_t get_subflow_ac_helper() const { return subflow_ac_helper; }
+    void set_subflow_ac_helper(uint64_t helper) { subflow_ac_helper = helper; }
+
+    // Getter and Setter for fwd_bulk_duration
+    uint64_t get_fwd_bulk_duration() const { return fwd_bulk_duration; }
+    void set_fwd_bulk_duration(uint64_t duration) { fwd_bulk_duration = duration; }
+
+    // Getter and Setter for fwd_bulk_packet_count
+    uint64_t get_fwd_bulk_packet_count() const { return fwd_bulk_packet_count; }
+    void set_fwd_bulk_packet_count(uint64_t count) { fwd_bulk_packet_count = count; }
+
+    // Getter and Setter for fwd_bulk_size_total
+    uint64_t get_fwd_bulk_size_total() const { return fwd_bulk_size_total; }
+    void set_fwd_bulk_size_total(uint64_t size) { fwd_bulk_size_total = size; }
+
+    // Getter and Setter for fwd_bulk_state_count
+    uint64_t get_fwd_bulk_state_count() const { return fwd_bulk_state_count; }
+    void set_fwd_bulk_state_count(uint64_t count) { fwd_bulk_state_count = count; }
+
+    // Getter and Setter for fwd_bulk_packet_count_helper
+    uint64_t get_fwd_bulk_packet_count_helper() const { return fwd_bulk_packet_count_helper; }
+    void set_fwd_bulk_packet_count_helper(uint64_t helper) { fwd_bulk_packet_count_helper = helper; }
+
+    // Getter and Setter for fwd_bulk_start_helper
+    uint64_t get_fwd_bulk_start_helper() const { return fwd_bulk_start_helper; }
+    void set_fwd_bulk_start_helper(uint64_t helper) { fwd_bulk_start_helper = helper; }
+
+    // Getter and Setter for fwd_bulk_size_helper
+    uint64_t get_fwd_bulk_size_helper() const { return fwd_bulk_size_helper; }
+    void set_fwd_bulk_size_helper(uint64_t helper) { fwd_bulk_size_helper = helper; }
+
+    // Getter and Setter for fwd_bulk_last_timestamp
+    uint64_t get_fwd_bulk_last_timestamp() const { return fwd_bulk_last_timestamp; }
+    void set_fwd_bulk_last_timestamp(uint64_t timestamp) { fwd_bulk_last_timestamp = timestamp; }
+
+    // Getter and Setter for bwd_bulk_duration
+    uint64_t get_bwd_bulk_duration() const { return bwd_bulk_duration; }
+    void set_bwd_bulk_duration(uint64_t duration) { bwd_bulk_duration = duration; }
+
+    // Getter and Setter for bwd_bulk_packet_count
+    uint64_t get_bwd_bulk_packet_count() const { return bwd_bulk_packet_count; }
+    void set_bwd_bulk_packet_count(uint64_t count) { bwd_bulk_packet_count = count; }
+
+    // Getter and Setter for bwd_bulk_size_total
+    uint64_t get_bwd_bulk_size_total() const { return bwd_bulk_size_total; }
+    void set_bwd_bulk_size_total(uint64_t size) { bwd_bulk_size_total = size; }
+
+    // Getter and Setter for bwd_bulk_state_count
+    uint64_t get_bwd_bulk_state_count() const { return bwd_bulk_state_count; }
+    void set_bwd_bulk_state_count(uint64_t count) { bwd_bulk_state_count = count; }
+
+    // Getter and Setter for bwd_bulk_packet_count_helper
+    uint64_t get_bwd_bulk_packet_count_helper() const { return bwd_bulk_packet_count_helper; }
+    void set_bwd_bulk_packet_count_helper(uint64_t helper) { bwd_bulk_packet_count_helper = helper; }
+
+    // Getter and Setter for bwd_bulk_start_helper
+    uint64_t get_bwd_bulk_start_helper() const { return bwd_bulk_start_helper; }
+    void set_bwd_bulk_start_helper(uint64_t helper) { bwd_bulk_start_helper = helper; }
+
+    // Getter and Setter for bwd_bulk_size_helper
+    uint64_t get_bwd_bulk_size_helper() const { return bwd_bulk_size_helper; }
+    void set_bwd_bulk_size_helper(uint64_t helper) { bwd_bulk_size_helper = helper; }
+
+    // Getter and Setter for bwd_bulk_last_timestamp
+    uint64_t get_bwd_bulk_last_timestamp() const { return bwd_bulk_last_timestamp; }
+    void set_bwd_bulk_last_timestamp(uint64_t timestamp) { bwd_bulk_last_timestamp = timestamp; }
 
 private:
     void update_flow_bulk(BasicPacketInfo &packet)

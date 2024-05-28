@@ -4,26 +4,35 @@
 #include <cstdint>
 #include <atomic>
 
-static std::atomic<uint64_t> id_counter = 0;
-
-void reset_id_counter()
+class IDGenerator
 {
-    id_counter.store(0);
-}
+private:
+    int id_counter;
 
-void increment_id_counter()
-{
-    id_counter.fetch_add(1);
-}
+public:
+    IDGenerator()
+    {
+        id_counter = 0;
+    }
+    void reset_id_counter()
+    {
+        id_counter = 0;
+    }
 
-void set_id_counter(uint64_t id)
-{
-    id_counter.store(id);
-}
+    void increment_id_counter()
+    {
+        id_counter++;
+    }
 
-uint64_t next_id()
-{
-    return id_counter.fetch_add(1) + 1; // Ensure it starts from 1 instead of 0
-}
+    void set_id_counter(uint64_t id)
+    {
+        id_counter = id;
+    }
 
+    uint64_t next_id()
+    {
+        increment_id_counter();
+        return id_counter;
+    }
+};
 #endif // _ID_GENERATOR_H_

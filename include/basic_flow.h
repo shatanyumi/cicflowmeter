@@ -44,6 +44,7 @@ public:
             return 0;
         double mean = get_mean();
         double sq_sum = std::inner_product(data.begin(), data.end(), data.begin(), 0.0);
+        return std::sqrt(sq_sum / data.size() - mean * mean);
     }
 
     double get_max() const
@@ -92,7 +93,7 @@ public:
 class BasicFlow
 {
 private:
-    static constexpr char separator = ',';
+    std::string separator = ",";
     SummaryStatistics fwd_pkt_stats;
     SummaryStatistics bwd_pkt_stats;
     std::vector<BasicPacketInfo> forward;
@@ -109,6 +110,8 @@ private:
     int bwd_psh_cnt = 0;
     int fwd_urg_cnt = 0;
     int bwd_urg_cnt = 0;
+    int fwd_fin_cnt = 0;
+    int bwd_fin_cnt = 0;
 
     uint64_t act_data_pkt_fwd = 0;
     uint64_t min_seg_size_fwd = 0;
@@ -138,6 +141,7 @@ private:
     uint64_t flow_last_seen;
     uint64_t fwd_last_seen;
     uint64_t bwd_last_seen;
+    uint64_t activity_timeout;
     /*******************************************/
     uint64_t subflow_last_packet_timestamp = -1;
     int subflow_count = 0;
@@ -172,6 +176,13 @@ public:
         first_packet(packet);
     }
 
+    BasicFlow(bool isBidirectional, BasicPacketInfo &packet, int timeout)
+        : is_bidirectional(isBidirectional)
+    {
+        init_parameters();
+        first_packet(packet);
+        this->activity_timeout = timeout;
+    }
     BasicFlow(bool isBidirectional, BasicPacketInfo &packet)
         : is_bidirectional(isBidirectional)
     {
@@ -185,6 +196,8 @@ public:
         init_parameters();
         first_packet(packet);
     }
+
+    BasicFlow() {}
 
     void init_parameters()
     {
@@ -377,6 +390,7 @@ public:
         {
             return (double)(this->backward.size() / this->forward.size());
         }
+        return 0;
     }
 
     double get_avg_pkt_size()
@@ -685,7 +699,7 @@ public:
 
     std::string dump_flow_based_features_ex()
     {
-        std::string dump = new std::string();
+        std::string dump = "";
 
         dump.append(get_flow_id()).append(separator);                  // 1
         dump.append(get_src()).append(separator);                      // 2
@@ -741,7 +755,7 @@ public:
         dump.append(std::to_string(flow_IAT.get_max())).append(separator);                                                     // 25
         dump.append(std::to_string(flow_IAT.get_min())).append(separator);                                                     // 26
 
-        if (this.forward.size() > 1)
+        if (this->forward.size() > 1)
         {
             dump.append(std::to_string(fwd_IAT.get_sum())).append(separator);  // 27
             dump.append(std::to_string(fwd_IAT.get_mean())).append(separator); // 28
@@ -757,7 +771,7 @@ public:
             dump.append("0").append(separator);
             dump.append("0").append(separator);
         }
-        if (this.backward.size() > 1)
+        if (this->backward.size() > 1)
         {
             dump.append(std::to_string(bwd_IAT.get_sum())).append(separator);  // 32
             dump.append(std::to_string(bwd_IAT.get_mean())).append(separator); // 33
@@ -784,7 +798,7 @@ public:
         dump.append(std::to_string(get_fwd_pkt_per_second())).append(separator); // 43
         dump.append(std::to_string(get_bwd_pkt_per_second())).append(separator); // 44
 
-        if (this.forward.size() > 0 || this.backward.size() > 0)
+        if (this->forward.size() > 0 || this->backward.size() > 0)
         {
             dump.append(std::to_string(flow_length_stats.get_min())).append(separator);      // 45
             dump.append(std::to_string(flow_length_stats.get_max())).append(separator);      // 46
@@ -839,7 +853,7 @@ public:
         dump.append(std::to_string(act_data_pkt_fwd)).append(separator);   // 75
         dump.append(std::to_string(min_seg_size_fwd)).append(separator);   // 76
 
-        if (this.flow_active.get_n() > 0)
+        if (this->flow_active.get_n() > 0)
         {
             dump.append(std::to_string(flow_active.get_mean())).append(separator); // 77
             dump.append(std::to_string(flow_active.get_std())).append(separator);  // 78
@@ -854,7 +868,7 @@ public:
             dump.append("0").append(separator);
         }
 
-        if (this.flow_idle.get_n() > 0)
+        if (this->flow_idle.get_n() > 0)
         {
             dump.append(std::to_string(flow_idle.get_mean())).append(separator); // 81
             dump.append(std::to_string(flow_idle.get_std())).append(separator);  // 82
@@ -914,24 +928,40 @@ public:
     void set_is_bidirectional(bool bidirectional) { is_bidirectional = bidirectional; }
 
     // Getter and Setter for flag_counts
-    int get_flag_counts(const std::string &key) const { return flag_counts[key].get(); }
+    int get_flag_counts(const std::string &key) { return flag_counts[key].get(); }
     void set_flag_counts(const std::string &key) { flag_counts[key].increment(); }
 
     // Getter and Setter for fwd_psh_cnt
     int get_fwd_psh_cnt() const { return fwd_psh_cnt; }
-    void set_fwd_psh_cnt(int cnt) { fwd_psh_cnt = cnt; }
+    int set_fwd_psh_cnt()
+    {
+        fwd_psh_cnt++;
+        return fwd_psh_cnt;
+    }
 
     // Getter and Setter for bwd_psh_cnt
     int get_bwd_psh_cnt() const { return bwd_psh_cnt; }
-    void set_bwd_psh_cnt(int cnt) { bwd_psh_cnt = cnt; }
+    int set_bwd_psh_cnt()
+    {
+        bwd_psh_cnt++;
+        return bwd_psh_cnt;
+    }
 
     // Getter and Setter for fwd_urg_cnt
     int get_fwd_urg_cnt() const { return fwd_urg_cnt; }
-    void set_fwd_urg_cnt(int cnt) { fwd_urg_cnt = cnt; }
+    int set_fwd_urg_cnt()
+    {
+        fwd_urg_cnt++;
+        return fwd_urg_cnt;
+    }
 
     // Getter and Setter for bwd_urg_cnt
     int get_bwd_urg_cnt() const { return bwd_urg_cnt; }
-    void set_bwd_urg_cnt(int cnt) { bwd_urg_cnt = cnt; }
+    int set_bwd_urg_cnt()
+    {
+        bwd_urg_cnt++;
+        return bwd_urg_cnt;
+    }
 
     // Getter and Setter for act_data_pkt_fwd
     uint64_t get_act_data_pkt_fwd() const { return act_data_pkt_fwd; }
@@ -990,16 +1020,16 @@ public:
     void set_flow_id(const std::string &id) { flow_id = id; }
 
     // Getter and Setter for flow_iat
-    SummaryStatistics get_flow_iat() const { return flow_iat; }
-    void set_flow_iat(const SummaryStatistics &iat) { flow_iat = iat; }
+    SummaryStatistics get_flow_iat() const { return flow_IAT; }
+    void set_flow_iat(const SummaryStatistics &iat) { flow_IAT = iat; }
 
     // Getter and Setter for fwd_iat
-    SummaryStatistics get_fwd_iat() const { return fwd_iat; }
-    void set_fwd_iat(const SummaryStatistics &iat) { fwd_iat = iat; }
+    SummaryStatistics get_fwd_iat() const { return fwd_IAT; }
+    void set_fwd_iat(const SummaryStatistics &iat) { fwd_IAT = iat; }
 
     // Getter and Setter for bwd_iat
-    SummaryStatistics get_bwd_iat() const { return bwd_iat; }
-    void set_bwd_iat(const SummaryStatistics &iat) { bwd_iat = iat; }
+    SummaryStatistics get_bwd_iat() const { return bwd_IAT; }
+    void set_bwd_iat(const SummaryStatistics &iat) { bwd_IAT = iat; }
 
     // Getter and Setter for flow_length_stats
     SummaryStatistics get_flow_length_stats() const { return flow_length_stats; }
@@ -1100,6 +1130,20 @@ public:
     // Getter and Setter for bwd_bulk_last_timestamp
     uint64_t get_bwd_bulk_last_timestamp() const { return bwd_bulk_last_timestamp; }
     void set_bwd_bulk_last_timestamp(uint64_t timestamp) { bwd_bulk_last_timestamp = timestamp; }
+
+    int get_fwd_fin_flags() { return fwd_fin_cnt; }
+    int set_fwd_fin_flags()
+    {
+        fwd_fin_cnt++;
+        return fwd_fin_cnt;
+    }
+
+    int get_bwd_fin_flags() { return bwd_fin_cnt; }
+    int set_bwd_fin_flags()
+    {
+        bwd_fin_cnt++;
+        return bwd_fin_cnt;
+    }
 
 private:
     void update_flow_bulk(BasicPacketInfo &packet)
@@ -1232,22 +1276,22 @@ private:
         subflow_last_packet_timestamp = packet.get_timestamp();
     }
 
-    uint64_t fwd_bulk_state_count()
+    uint64_t get_fwd_bulk_state_count()
     {
         return fwd_bulk_state_count;
     }
 
-    uint64_t fwd_bulk_size_total()
+    uint64_t get_fwd_bulk_size_total()
     {
         return fwd_bulk_size_total;
     }
 
-    uint64_t fwd_bulk_packet_count()
+    uint64_t get_fwd_bulk_packet_count()
     {
         return fwd_bulk_packet_count;
     }
 
-    uint64_t fwd_bulk_duration()
+    uint64_t get_fwd_bulk_duration()
     {
         return fwd_bulk_duration;
     }
@@ -1282,22 +1326,22 @@ private:
     }
 
     // new features server
-    uint64_t bwd_bulk_packet_count()
+    uint64_t get_bwd_bulk_packet_count()
     {
         return bwd_bulk_packet_count;
     }
 
-    uint64_t bwd_bulk_state_count()
+    uint64_t get_bwd_bulk_state_count()
     {
         return bwd_bulk_state_count;
     }
 
-    uint64_t bwd_bulk_size_total()
+    uint64_t get_bwd_bulk_size_total()
     {
         return bwd_bulk_size_total;
     }
 
-    uint64_t bwd_bulk_duration()
+    uint64_t get_bwd_bulk_duration()
     {
         return bwd_bulk_duration;
     }

@@ -9,6 +9,9 @@
 class BasicPacketInfo
 {
 private:
+    bool is_valid = false;
+    IDGenerator id_generator;
+
     uint64_t id;
     std::string src_ip;
     std::string dst_ip;
@@ -34,9 +37,11 @@ public:
     BasicPacketInfo(std::string src_ip, std::string dst_ip, uint16_t src_port, uint16_t dst_port, uint8_t protocol, uint64_t timestamp)
         : src_ip(std::move(src_ip)), dst_ip(std::move(dst_ip)), src_port(src_port), dst_port(dst_port), protocol(protocol), timestamp(timestamp)
     {
-        this->id = next_id();
+        is_valid = true;
+        id = id_generator.next_id();
         generate_flow_id();
     }
+    BasicPacketInfo() = default;
 
     std::string generate_flow_id()
     {
@@ -245,6 +250,16 @@ public:
     void set_tcp_window(uint64_t tcp_window)
     {
         this->tcp_window = tcp_window;
+    }
+
+    bool get_is_valid() const
+    {
+        return is_valid;
+    }
+
+    void set_is_valid(bool is_valid)
+    {
+        this->is_valid = is_valid;
     }
 };
 

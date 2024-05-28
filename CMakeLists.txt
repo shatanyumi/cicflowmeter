@@ -18,14 +18,6 @@ set(SOURCES
     src/pcap2csv.cpp
 )
 
-# Add your test source files here
-set(TEST_SOURCES
-    test/test_basic_packet_info.cpp
-    test/test_flow_feature.cpp
-    test/test_main.cpp
-    # Add more test files as needed
-)
-
 # Add any additional libraries or dependencies here
 set(LIBRARIES
     pcap
@@ -38,11 +30,14 @@ add_executable(pcap2csv ${SOURCES})
 # Link any libraries or dependencies
 target_link_libraries(pcap2csv ${LIBRARIES})
 
-# Set the executable target for tests
-add_executable(run_tests ${TEST_SOURCES})
-
-# Link the same libraries and gTest to the test executable
-target_link_libraries(run_tests ${LIBRARIES} gtest gtest_main)
+# List your test source files here
+set(TEST_SOURCES
+    test/test_basic_packet_info.cpp
+    test/test_flow_feature.cpp
+    test/test_main.cpp
+    test/test_flow_generator.cpp
+    # Add more test files as needed
+)
 
 # Include test files in build
 include_directories(test)
@@ -50,5 +45,17 @@ include_directories(test)
 # Enable testing
 enable_testing()
 
-# Add a test target
-add_test(NAME pcap2csv_tests COMMAND run_tests)
+# Create an executable and test for each test source file
+foreach(test_src ${TEST_SOURCES})
+    # Get the file name without directory
+    get_filename_component(test_name ${test_src} NAME_WE)
+
+    # Create an executable for this test
+    add_executable(${test_name} ${test_src})
+
+    # Link the libraries and gTest
+    target_link_libraries(${test_name} ${LIBRARIES} gtest gtest_main)
+
+    # Add the test target
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endforeach()

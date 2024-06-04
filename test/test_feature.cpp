@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include "flow_feature.h"
+#include "feature.h"
 
 TEST(FlowFeatureInfoTest, GetHeader) {
     std::string header = FlowFeatureInfo::getHeader();

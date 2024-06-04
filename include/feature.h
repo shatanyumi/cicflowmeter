@@ -1,5 +1,5 @@
-#ifndef FLOW_FEATURE_H
-#define FLOW_FEATURE_H
+#ifndef FEATURES_H
+#define FEATURES_H
 
 #include <string>
 #include <vector>

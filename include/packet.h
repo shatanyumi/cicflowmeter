@@ -1,18 +1,13 @@
-#ifndef _BASIC_PACKET_INFO_H_
-#define _BASIC_PACKET_INFO_H_
+#ifndef _PACKET_H_
+#define _PACKET_H_
 
 #include <string>
 #include <cstdint>
-#include "id_generator.h"
 
 // Basic Packet information
-class BasicPacketInfo
+class Packet
 {
 private:
-    bool is_valid = false;
-    IDGenerator id_generator;
-
-    uint64_t id;
     std::string src_ip;
     std::string dst_ip;
     uint16_t src_port;
@@ -34,64 +29,51 @@ private:
     uint64_t payload_packets = 0;
 
 public:
-    BasicPacketInfo(std::string src_ip, std::string dst_ip, uint16_t src_port, uint16_t dst_port, uint8_t protocol, uint64_t timestamp)
-        : src_ip(std::move(src_ip)), dst_ip(std::move(dst_ip)), src_port(src_port), dst_port(dst_port), protocol(protocol), timestamp(timestamp)
+    Packet(const std::string &src_ip, const std::string &dst_ip, uint16_t src_port, uint16_t dst_port, uint8_t protocol, uint64_t timestamp)
+        : src_ip(src_ip), dst_ip(dst_ip), src_port(src_port), dst_port(dst_port), protocol(protocol), timestamp(timestamp)
     {
-        is_valid = true;
-        id = id_generator.next_id();
         generate_flow_id();
     }
-    BasicPacketInfo() = default;
+
+    Packet() = default;
 
     std::string generate_flow_id()
     {
         bool forward = src_ip < dst_ip;
 
         if (forward)
-            this->flow_id = src_ip + "-" + dst_ip + "-" + std::to_string(src_port) + "-" + std::to_string(dst_port) + "-" + std::to_string(protocol);
+            this->flow_id = fwd_flow_id();
         else
-            this->flow_id = dst_ip + "-" + src_ip + "-" + std::to_string(dst_port) + "-" + std::to_string(src_port) + "-" + std::to_string(protocol);
+            this->flow_id = bwd_flow_id();
         return this->flow_id;
     }
 
-    std::string fwd_flow_id()
+    std::string fwd_flow_id() const
     {
-        this->flow_id = src_ip + "-" + dst_ip + "-" + std::to_string(src_port) + "-" + std::to_string(dst_port) + "-" + std::to_string(protocol);
-        return this->flow_id;
+        return src_ip + "-" + dst_ip + "-" + std::to_string(src_port) + "-" + std::to_string(dst_port) + "-" + std::to_string(protocol);
     }
 
-    std::string bwd_flow_id()
+    std::string bwd_flow_id() const
     {
-        this->flow_id = dst_ip + "-" + src_ip + "-" + std::to_string(dst_port) + "-" + std::to_string(src_port) + "-" + std::to_string(protocol);
-        return this->flow_id;
+        return dst_ip + "-" + src_ip + "-" + std::to_string(dst_port) + "-" + std::to_string(src_port) + "-" + std::to_string(protocol);
     }
 
-    uint64_t get_id() const
-    {
-        return id;
-    }
-
-    void set_id(uint64_t id)
-    {
-        this->id = id;
-    }
-
-    std::string get_src_ip() const
+    const std::string &get_src_ip() const
     {
         return src_ip;
     }
 
-    void set_src_ip(std::string src_ip)
+    void set_src_ip(const std::string &src_ip)
     {
         this->src_ip = src_ip;
     }
 
-    std::string get_dst_ip() const
+    const std::string &get_dst_ip() const
     {
         return dst_ip;
     }
 
-    void set_dst_ip(std::string dst_ip)
+    void set_dst_ip(const std::string &dst_ip)
     {
         this->dst_ip = dst_ip;
     }
@@ -148,8 +130,7 @@ public:
 
     uint64_t get_payload_packets()
     {
-        this->payload_packets += 1;
-        return this->payload_packets;
+        return ++payload_packets;
     }
 
     uint64_t get_header_bytes() const
@@ -251,16 +232,6 @@ public:
     {
         this->tcp_window = tcp_window;
     }
-
-    bool get_is_valid() const
-    {
-        return is_valid;
-    }
-
-    void set_is_valid(bool is_valid)
-    {
-        this->is_valid = is_valid;
-    }
 };
 
-#endif // _BASIC_PACKET_INFO_H_
+#endif // _PACKET_H_

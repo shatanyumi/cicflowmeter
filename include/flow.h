@@ -1,6 +1,7 @@
-#ifndef BASIC_FLOW_H
-#define BASIC_FLOW_H
+#ifndef _FLOW_H
+#define _FLOW_H
 
+#include <cassert>
 #include <vector>
 #include <unordered_map>
 #include <string>
@@ -12,8 +13,7 @@
 #include <chrono>
 #include <iomanip>
 #include <numeric>
-#include "basic_packet_info.h" // Include the BasicPacketInfo header
-#include "flow_feature.h"      // Include the FlowFeature header
+#include "packet.h" // Include the BasicPacketInfo header
 
 class SummaryStatistics
 {
@@ -90,20 +90,71 @@ public:
     }
 };
 
-class BasicFlow
+inline uint32_t ip2long(const char *ip)
+{
+    uint32_t result = 0, cur = 0, cnt = 0;
+    for (size_t i = 0, n = strlen(ip); i < n; i += 1)
+    {
+        if (ip[i] == '.')
+            result = (result << 8) + cur, cur = 0, cnt += 1;
+        else
+            cur = cur * 10u + (uint32_t)(ip[i] - '0');
+        assert(cur <= 255), assert(cnt <= 3);
+    }
+    return assert(cnt == 3), (result << 8) + cur;
+}
+
+inline void ip2string(uint32_t ip, char *result)
+{
+    sprintf(result, "%u.%u.%u.%u", ip >> 24, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
+}
+inline std::string ip2string(uint32_t ip)
+{
+    using std::__cxx11::to_string;
+    return to_string(ip >> 24) + "." + to_string((ip >> 16) & 255) + "." + to_string((ip >> 8) & 255) + "." + to_string(ip & 255);
+}
+
+class Flow
 {
 private:
+    // separator
     std::string separator = ",";
+
+    // flow basic ip information
+    std::string src_ip;
+    std::string dst_ip;
+    uint16_t src_port;
+    uint16_t dst_port;
+    uint8_t protocol;
+
+    // flow start and end time
+    uint64_t flow_start_time;
+    uint64_t flow_end_time;
+
+    // flow activate time
+    uint64_t start_active_time;
+    uint64_t end_active_time;
+
+    std::string flow_id;
+
+    // flow forward and backward statistics
     SummaryStatistics fwd_pkt_stats;
     SummaryStatistics bwd_pkt_stats;
-    std::vector<BasicPacketInfo> forward;
-    std::vector<BasicPacketInfo> backward;
 
+    // flow forward and backward packets
+    std::vector<Packet> fwd;
+    std::vector<Packet> bwd;
+
+    // flow forward and backward bytes and header bytes
     uint64_t fwd_bytes = 0;
     uint64_t bwd_bytes = 0;
     uint64_t fwd_header_bytes = 0;
     uint64_t bwd_header_bytes = 0;
+
+    // flow direction
     bool is_bidirectional;
+
+    // flow flags
     std::unordered_map<std::string, MutableInt> flag_counts;
 
     int fwd_psh_cnt = 0;
@@ -113,38 +164,30 @@ private:
     int fwd_fin_cnt = 0;
     int bwd_fin_cnt = 0;
 
+    // fwd data packet and min seg size
     uint64_t act_data_pkt_fwd = 0;
     uint64_t min_seg_size_fwd = 0;
+
+    // windows size bytes of forward and backward
     uint64_t init_win_bytes_fwd = 0;
     uint64_t init_win_bytes_bwd = 0;
 
-    std::string src;
-    std::string dst;
-    int src_port;
-    int dst_port;
-    int protocol;
-
-    uint64_t flow_start_time;
-    uint64_t flow_end_time;
-    uint64_t start_active_time;
-    uint64_t end_active_time;
-
-    std::string flow_id;
-
-    SummaryStatistics flow_IAT;
-    SummaryStatistics fwd_IAT;
-    SummaryStatistics bwd_IAT;
+    // flow statistics
+    SummaryStatistics flow_iat;
+    SummaryStatistics fwd_iat;
+    SummaryStatistics bwd_iat;
     SummaryStatistics flow_length_stats;
     SummaryStatistics flow_active;
     SummaryStatistics flow_idle;
 
+    // flow time, stored in microseconds
     uint64_t flow_last_seen;
     uint64_t fwd_last_seen;
     uint64_t bwd_last_seen;
     uint64_t activity_timeout;
     /*******************************************/
     uint64_t subflow_last_packet_timestamp = -1;
-    int subflow_count = 0;
+    uint64_t subflow_count = 0;
     uint64_t subflow_ac_helper = 0;
     /*******************************************/
     uint64_t fwd_bulk_duration = 0;
@@ -164,48 +207,40 @@ private:
     uint64_t bwd_bulk_start_helper = 0;
     uint64_t bwd_bulk_size_helper = 0;
     uint64_t bwd_bulk_last_timestamp = 0;
-
     /*******************************************/
     std::string label;
 
 public:
-    BasicFlow(bool isBidirectional, BasicPacketInfo &packet, const std::string &flow_src, const std::string &flow_dst, int src_port, int dst_port, int protocol)
-        : is_bidirectional(isBidirectional), src(flow_src), dst(flow_dst), src_port(src_port), dst_port(dst_port), protocol(protocol)
-    {
-        init_parameters();
-        first_packet(packet);
-    }
-
-    BasicFlow(bool isBidirectional, BasicPacketInfo &packet, int timeout)
+    Flow(bool isBidirectional, Packet &packet, int timeout)
         : is_bidirectional(isBidirectional)
     {
         init_parameters();
         first_packet(packet);
         this->activity_timeout = timeout;
     }
-    BasicFlow(bool isBidirectional, BasicPacketInfo &packet)
+    Flow(bool isBidirectional, Packet &packet)
         : is_bidirectional(isBidirectional)
     {
         init_parameters();
         first_packet(packet);
     }
 
-    BasicFlow(BasicPacketInfo &packet)
+    Flow(Packet &packet)
         : is_bidirectional(true)
     {
         init_parameters();
         first_packet(packet);
     }
 
-    BasicFlow() {}
+    Flow() {}
 
     void init_parameters()
     {
-        forward = std::vector<BasicPacketInfo>();                    // Initialize the forward vector
-        backward = std::vector<BasicPacketInfo>();                   // Initialize the backward vector
-        flow_IAT = SummaryStatistics();                              // Initialize the flow_IAT
-        fwd_IAT = SummaryStatistics();                               // Initialize the fwd_IAT
-        bwd_IAT = SummaryStatistics();                               // Initialize the bwd_IAT
+        fwd = std::vector<Packet>();                                 // Initialize the forward vector
+        bwd = std::vector<Packet>();                                 // Initialize the backward vector
+        flow_iat = SummaryStatistics();                              // Initialize the flow_IAT
+        fwd_iat = SummaryStatistics();                               // Initialize the fwd_IAT
+        bwd_iat = SummaryStatistics();                               // Initialize the bwd_IAT
         flow_active = SummaryStatistics();                           // Initialize the flow_active
         flow_idle = SummaryStatistics();                             // Initialize the flow_idle
         flow_length_stats = SummaryStatistics();                     // Initialize the flow_length_stats
@@ -217,8 +252,8 @@ public:
         bwd_bytes = 0L;                                              // Initialize the bwd_bytes
         start_active_time = 0L;                                      // Initialize the start_active_time
         end_active_time = 0L;                                        // Initialize the end_active_time
-        src = "";                                                    // Initialize the src
-        dst = "";                                                    // Initialize the dst
+        src_ip = "";                                                 // Initialize the src
+        dst_ip = "";                                                 // Initialize the dst
         fwd_psh_cnt = 0;                                             // Initialize the fwd_psh_cnt
         bwd_psh_cnt = 0;                                             // Initialize the bwd_psh_cnt
         fwd_urg_cnt = 0;                                             // Initialize the fwd_urg_cnt
@@ -237,8 +272,19 @@ public:
         flag_counts["ECE"] = MutableInt();
     }
 
-    void first_packet(BasicPacketInfo &packet)
+    void set_basic_flow_info(Packet &packet)
     {
+        this->src_ip = packet.get_src_ip();
+        this->dst_ip = packet.get_dst_ip();
+        this->src_port = packet.get_src_port();
+        this->dst_port = packet.get_dst_port();
+        this->protocol = packet.get_protocol();
+        this->flow_start_time = packet.get_timestamp();
+        this->flow_id = packet.generate_flow_id();
+    }
+    void first_packet(Packet &packet)
+    {
+        set_basic_flow_info(packet);
         update_flow_bulk(packet);
         detect_update_subflows(packet);
         check_flags(packet);
@@ -248,7 +294,7 @@ public:
         {
             this->flow_length_stats.add_value(packet.get_payload_bytes());
 
-            if (this->src == packet.get_src_ip())
+            if (this->src_ip == packet.get_src_ip())
             {
                 if (packet.get_payload_bytes() > 0)
                 {
@@ -256,11 +302,11 @@ public:
                 }
                 this->fwd_pkt_stats.add_value((double)packet.get_payload_bytes());
                 this->fwd_header_bytes += packet.get_header_bytes();
-                this->forward.push_back(packet);
+                this->fwd.push_back(packet);
                 this->fwd_bytes += packet.get_payload_bytes();
-                if (this->forward.size() > 1)
+                if (this->fwd.size() > 1)
                 {
-                    this->fwd_IAT.add_value(current_timestamp - this->fwd_last_seen);
+                    this->fwd_iat.add_value(current_timestamp - this->fwd_last_seen);
                     this->fwd_last_seen = current_timestamp;
                     this->min_seg_size_fwd = std::min(this->min_seg_size_fwd, packet.get_header_bytes());
                 }
@@ -269,11 +315,11 @@ public:
             {
                 this->bwd_pkt_stats.add_value((double)packet.get_payload_bytes());
                 this->bwd_header_bytes += packet.get_header_bytes();
-                this->backward.push_back(packet);
+                this->bwd.push_back(packet);
                 this->bwd_bytes += packet.get_payload_bytes();
-                if (this->backward.size() > 1)
+                if (this->bwd.size() > 1)
                 {
-                    this->bwd_IAT.add_value(current_timestamp - this->bwd_last_seen);
+                    this->bwd_iat.add_value(current_timestamp - this->bwd_last_seen);
                     this->bwd_last_seen = current_timestamp;
                 }
             }
@@ -287,18 +333,18 @@ public:
             this->fwd_pkt_stats.add_value((double)packet.get_payload_bytes());
             this->flow_length_stats.add_value((double)packet.get_payload_bytes());
             this->fwd_header_bytes += packet.get_header_bytes();
-            this->forward.push_back(packet);
+            this->fwd.push_back(packet);
             this->fwd_bytes += packet.get_payload_bytes();
-            this->fwd_IAT.add_value(current_timestamp - this->fwd_last_seen);
+            this->fwd_iat.add_value(current_timestamp - this->fwd_last_seen);
             this->fwd_last_seen = current_timestamp;
             this->min_seg_size_fwd = std::min(this->min_seg_size_fwd, packet.get_header_bytes());
         }
 
-        this->flow_IAT.add_value(packet.get_timestamp() - this->flow_last_seen);
+        this->flow_iat.add_value(packet.get_timestamp() - this->flow_last_seen);
         this->flow_last_seen = packet.get_timestamp();
     }
 
-    void add_packet(BasicPacketInfo &packet)
+    void add_packet(Packet &packet)
     {
         update_flow_bulk(packet);
         detect_update_subflows(packet);
@@ -309,7 +355,7 @@ public:
         {
             this->flow_length_stats.add_value(packet.get_payload_bytes());
 
-            if (this->src == packet.get_src_ip())
+            if (this->src_ip == packet.get_src_ip())
             {
                 if (packet.get_payload_bytes() > 0)
                 {
@@ -317,10 +363,10 @@ public:
                 }
                 this->fwd_pkt_stats.add_value((double)packet.get_payload_bytes());
                 this->fwd_header_bytes += packet.get_header_bytes();
-                this->forward.push_back(packet);
+                this->fwd.push_back(packet);
                 this->fwd_bytes += packet.get_payload_bytes();
-                if (this->forward.size() > 1)
-                    this->fwd_IAT.add_value(current_timestamp - this->fwd_last_seen);
+                if (this->fwd.size() > 1)
+                    this->fwd_iat.add_value(current_timestamp - this->fwd_last_seen);
                 this->fwd_last_seen = current_timestamp;
                 this->min_seg_size_fwd = std::min(this->min_seg_size_fwd, packet.get_header_bytes());
             }
@@ -329,10 +375,10 @@ public:
                 this->bwd_pkt_stats.add_value((double)packet.get_payload_bytes());
                 this->init_win_bytes_bwd = packet.get_tcp_window();
                 this->bwd_header_bytes += packet.get_header_bytes();
-                this->backward.push_back(packet);
+                this->bwd.push_back(packet);
                 this->bwd_bytes += packet.get_payload_bytes();
-                if (this->backward.size() > 1)
-                    this->bwd_IAT.add_value(current_timestamp - this->bwd_last_seen);
+                if (this->bwd.size() > 1)
+                    this->bwd_iat.add_value(current_timestamp - this->bwd_last_seen);
                 this->bwd_last_seen = current_timestamp;
             }
         }
@@ -345,13 +391,13 @@ public:
             this->fwd_pkt_stats.add_value((double)packet.get_payload_bytes());
             this->flow_length_stats.add_value((double)packet.get_payload_bytes());
             this->fwd_header_bytes += packet.get_header_bytes();
-            this->forward.push_back(packet);
+            this->fwd.push_back(packet);
             this->fwd_bytes += packet.get_payload_bytes();
-            this->fwd_IAT.add_value(current_timestamp - this->fwd_last_seen);
+            this->fwd_iat.add_value(current_timestamp - this->fwd_last_seen);
             this->fwd_last_seen = current_timestamp;
             this->min_seg_size_fwd = std::min(this->min_seg_size_fwd, packet.get_header_bytes());
         }
-        this->flow_IAT.add_value(packet.get_timestamp() - this->flow_last_seen);
+        this->flow_iat.add_value(packet.get_timestamp() - this->flow_last_seen);
         this->flow_last_seen = packet.get_timestamp();
     }
     double get_fwd_pkt_per_second()
@@ -359,7 +405,7 @@ public:
         uint64_t duration = this->flow_last_seen - this->flow_start_time;
         if (duration > 0)
         {
-            return (this->forward.size() / ((double)duration / 1000000L));
+            return (this->fwd.size() / ((double)duration / 1000000L));
         }
         else
         {
@@ -376,7 +422,7 @@ public:
         uint64_t duration = this->flow_last_seen - this->flow_start_time;
         if (duration > 0)
         {
-            return (this->backward.size() / ((double)duration / 1000000L));
+            return (this->bwd.size() / ((double)duration / 1000000L));
         }
         else
         {
@@ -386,9 +432,9 @@ public:
 
     double get_down_up_ratio()
     {
-        if (this->forward.size() > 0)
+        if (this->fwd.size() > 0)
         {
-            return (double)(this->backward.size() / this->forward.size());
+            return (double)(this->bwd.size() / this->fwd.size());
         }
         return 0;
     }
@@ -404,18 +450,18 @@ public:
 
     double get_fwd_avg_segment_size()
     {
-        if (this->forward.size() > 0)
+        if (this->fwd.size() > 0)
         {
-            return (this->fwd_pkt_stats.get_sum() / this->forward.size());
+            return (this->fwd_pkt_stats.get_sum() / this->fwd.size());
         }
         return 0;
     }
 
     double get_bwd_avg_segment_size()
     {
-        if (this->backward.size() > 0)
+        if (this->bwd.size() > 0)
         {
-            return (this->bwd_pkt_stats.get_sum() / this->backward.size());
+            return (this->bwd_pkt_stats.get_sum() / this->bwd.size());
         }
         return 0;
     }
@@ -424,14 +470,14 @@ public:
     {
         if (is_bidirectional)
         {
-            return this->forward.size() + this->backward.size();
+            return this->fwd.size() + this->bwd.size();
         }
         else
         {
-            return this->forward.size();
+            return this->fwd.size();
         }
     }
-    void check_flags(BasicPacketInfo &packet)
+    void check_flags(Packet &packet)
     {
         if (packet.has_flag_fin())
             flag_counts["FIN"].increment();
@@ -462,7 +508,7 @@ public:
     {
         if (this->subflow_count <= 0)
             return 0;
-        return this->forward.size() / this->subflow_count;
+        return this->fwd.size() / this->subflow_count;
     }
 
     uint64_t get_subflow_bwd_bytes()
@@ -476,7 +522,7 @@ public:
     {
         if (this->subflow_count <= 0)
             return 0;
-        return this->backward.size() / this->subflow_count;
+        return this->bwd.size() / this->subflow_count;
     }
 
     void update_activate_idle_time(uint64_t current_time, uint64_t threshold)
@@ -513,9 +559,9 @@ public:
         std::string dump = "";
         // tuple
         dump += this->flow_id + separator;
-        dump += this->src + separator;
+        dump += this->src_ip + separator;
         dump += std::to_string(src_port) + separator;
-        dump += this->dst + separator;
+        dump += this->dst_ip + separator;
         dump += std::to_string(dst_port) + separator;
         dump += std::to_string(protocol) + separator;
         // time
@@ -559,17 +605,17 @@ public:
         // flow duration in microseconds, therefore packet per second
         dump += std::to_string(((double)this->fwd_bytes + this->bwd_bytes) / ((double)flow_duration / 1000000L)) + separator;
         dump += std::to_string(((double)this->packet_count()) / ((double)flow_duration / 1000000L)) + separator;
-        dump += std::to_string(this->flow_IAT.get_mean()) + separator;
-        dump += std::to_string(this->flow_IAT.get_std()) + separator;
-        dump += std::to_string(this->flow_IAT.get_max()) + separator;
-        dump += std::to_string(this->flow_IAT.get_min()) + separator;
-        if (this->forward.size() > 1)
+        dump += std::to_string(this->flow_iat.get_mean()) + separator;
+        dump += std::to_string(this->flow_iat.get_std()) + separator;
+        dump += std::to_string(this->flow_iat.get_max()) + separator;
+        dump += std::to_string(this->flow_iat.get_min()) + separator;
+        if (this->fwd.size() > 1)
         {
-            dump += std::to_string(this->fwd_IAT.get_sum()) + separator;
-            dump += std::to_string(this->fwd_IAT.get_mean()) + separator;
-            dump += std::to_string(this->fwd_IAT.get_std()) + separator;
-            dump += std::to_string(this->fwd_IAT.get_max()) + separator;
-            dump += std::to_string(this->fwd_IAT.get_min()) + separator;
+            dump += std::to_string(this->fwd_iat.get_sum()) + separator;
+            dump += std::to_string(this->fwd_iat.get_mean()) + separator;
+            dump += std::to_string(this->fwd_iat.get_std()) + separator;
+            dump += std::to_string(this->fwd_iat.get_max()) + separator;
+            dump += std::to_string(this->fwd_iat.get_min()) + separator;
         }
         else
         {
@@ -580,13 +626,13 @@ public:
             dump += "0" + separator;
         }
 
-        if (this->backward.size() > 1)
+        if (this->bwd.size() > 1)
         {
-            dump += std::to_string(this->bwd_IAT.get_sum()) + separator;
-            dump += std::to_string(this->bwd_IAT.get_mean()) + separator;
-            dump += std::to_string(this->bwd_IAT.get_std()) + separator;
-            dump += std::to_string(this->bwd_IAT.get_max()) + separator;
-            dump += std::to_string(this->bwd_IAT.get_min()) + separator;
+            dump += std::to_string(this->bwd_iat.get_sum()) + separator;
+            dump += std::to_string(this->bwd_iat.get_mean()) + separator;
+            dump += std::to_string(this->bwd_iat.get_std()) + separator;
+            dump += std::to_string(this->bwd_iat.get_max()) + separator;
+            dump += std::to_string(this->bwd_iat.get_min()) + separator;
         }
         else
         {
@@ -611,7 +657,7 @@ public:
         dump += std::to_string(this->get_bwd_pkt_per_second()) + separator;
 
         // packet length
-        if (this->forward.size() > 0 || this->forward.size() > 0)
+        if (this->fwd.size() > 0 || this->fwd.size() > 0)
         {
             dump += std::to_string(this->flow_length_stats.get_min()) + separator;
             dump += std::to_string(this->flow_length_stats.get_max()) + separator;
@@ -702,9 +748,9 @@ public:
         std::string dump = "";
 
         dump.append(get_flow_id()).append(separator);                  // 1
-        dump.append(get_src()).append(separator);                      // 2
+        dump.append(get_src_ip()).append(separator);                   // 2
         dump.append(std::to_string(get_src_port())).append(separator); // 3
-        dump.append(get_dst()).append(separator);                      // 4
+        dump.append(get_dst_ip()).append(separator);                   // 4
         dump.append(std::to_string(get_dst_port())).append(separator); // 5
         dump.append(std::to_string(get_protocol())).append(separator); // 6
 
@@ -750,18 +796,18 @@ public:
         }
         dump.append(std::to_string(((double)(fwd_bytes + bwd_bytes)) / ((double)flow_duration / 1000000L))).append(separator); // 21
         dump.append(std::to_string(((double)packet_count()) / ((double)flow_duration / 1000000L))).append(separator);          // 22
-        dump.append(std::to_string(flow_IAT.get_mean())).append(separator);                                                    // 23
-        dump.append(std::to_string(flow_IAT.get_std())).append(separator);                                                     // 24
-        dump.append(std::to_string(flow_IAT.get_max())).append(separator);                                                     // 25
-        dump.append(std::to_string(flow_IAT.get_min())).append(separator);                                                     // 26
+        dump.append(std::to_string(flow_iat.get_mean())).append(separator);                                                    // 23
+        dump.append(std::to_string(flow_iat.get_std())).append(separator);                                                     // 24
+        dump.append(std::to_string(flow_iat.get_max())).append(separator);                                                     // 25
+        dump.append(std::to_string(flow_iat.get_min())).append(separator);                                                     // 26
 
-        if (this->forward.size() > 1)
+        if (this->fwd.size() > 1)
         {
-            dump.append(std::to_string(fwd_IAT.get_sum())).append(separator);  // 27
-            dump.append(std::to_string(fwd_IAT.get_mean())).append(separator); // 28
-            dump.append(std::to_string(fwd_IAT.get_std())).append(separator);  // 29
-            dump.append(std::to_string(fwd_IAT.get_max())).append(separator);  // 30
-            dump.append(std::to_string(fwd_IAT.get_min())).append(separator);  // 31
+            dump.append(std::to_string(fwd_iat.get_sum())).append(separator);  // 27
+            dump.append(std::to_string(fwd_iat.get_mean())).append(separator); // 28
+            dump.append(std::to_string(fwd_iat.get_std())).append(separator);  // 29
+            dump.append(std::to_string(fwd_iat.get_max())).append(separator);  // 30
+            dump.append(std::to_string(fwd_iat.get_min())).append(separator);  // 31
         }
         else
         {
@@ -771,13 +817,13 @@ public:
             dump.append("0").append(separator);
             dump.append("0").append(separator);
         }
-        if (this->backward.size() > 1)
+        if (this->bwd.size() > 1)
         {
-            dump.append(std::to_string(bwd_IAT.get_sum())).append(separator);  // 32
-            dump.append(std::to_string(bwd_IAT.get_mean())).append(separator); // 33
-            dump.append(std::to_string(bwd_IAT.get_std())).append(separator);  // 34
-            dump.append(std::to_string(bwd_IAT.get_max())).append(separator);  // 35
-            dump.append(std::to_string(bwd_IAT.get_min())).append(separator);  // 36
+            dump.append(std::to_string(bwd_iat.get_sum())).append(separator);  // 32
+            dump.append(std::to_string(bwd_iat.get_mean())).append(separator); // 33
+            dump.append(std::to_string(bwd_iat.get_std())).append(separator);  // 34
+            dump.append(std::to_string(bwd_iat.get_max())).append(separator);  // 35
+            dump.append(std::to_string(bwd_iat.get_min())).append(separator);  // 36
         }
         else
         {
@@ -798,7 +844,7 @@ public:
         dump.append(std::to_string(get_fwd_pkt_per_second())).append(separator); // 43
         dump.append(std::to_string(get_bwd_pkt_per_second())).append(separator); // 44
 
-        if (this->forward.size() > 0 || this->backward.size() > 0)
+        if (this->fwd.size() > 0 || this->bwd.size() > 0)
         {
             dump.append(std::to_string(flow_length_stats.get_min())).append(separator);      // 45
             dump.append(std::to_string(flow_length_stats.get_max())).append(separator);      // 46
@@ -900,12 +946,12 @@ public:
     void set_bwd_pkt_stats(const SummaryStatistics &stats) { bwd_pkt_stats = stats; }
 
     // Getter and Setter for forward
-    std::vector<BasicPacketInfo> get_forward() const { return forward; }
-    void set_forward(const std::vector<BasicPacketInfo> &packets) { forward = packets; }
+    std::vector<Packet> get_forward() const { return fwd; }
+    void set_forward(const std::vector<Packet> &packets) { fwd = packets; }
 
     // Getter and Setter for backward
-    std::vector<BasicPacketInfo> get_backward() const { return backward; }
-    void set_backward(const std::vector<BasicPacketInfo> &packets) { backward = packets; }
+    std::vector<Packet> get_backward() const { return bwd; }
+    void set_backward(const std::vector<Packet> &packets) { bwd = packets; }
 
     // Getter and Setter for fwd_bytes
     uint64_t get_fwd_bytes() const { return fwd_bytes; }
@@ -980,12 +1026,12 @@ public:
     void set_init_win_bytes_bwd(uint64_t win_bytes) { init_win_bytes_bwd = win_bytes; }
 
     // Getter and Setter for src
-    std::string get_src() const { return src; }
-    void set_src(const std::string &source) { src = source; }
+    std::string get_src_ip() const { return src_ip; }
+    void set_src_ip(const std::string &source) { src_ip = source; }
 
     // Getter and Setter for dst
-    std::string get_dst() const { return dst; }
-    void set_dst(const std::string &destination) { dst = destination; }
+    std::string get_dst_ip() const { return dst_ip; }
+    void set_dst_ip(const std::string &destination) { dst_ip = destination; }
 
     // Getter and Setter for src_port
     int get_src_port() const { return src_port; }
@@ -1020,16 +1066,16 @@ public:
     void set_flow_id(const std::string &id) { flow_id = id; }
 
     // Getter and Setter for flow_iat
-    SummaryStatistics get_flow_iat() const { return flow_IAT; }
-    void set_flow_iat(const SummaryStatistics &iat) { flow_IAT = iat; }
+    SummaryStatistics get_flow_iat() const { return flow_iat; }
+    void set_flow_iat(const SummaryStatistics &iat) { flow_iat = iat; }
 
     // Getter and Setter for fwd_iat
-    SummaryStatistics get_fwd_iat() const { return fwd_IAT; }
-    void set_fwd_iat(const SummaryStatistics &iat) { fwd_IAT = iat; }
+    SummaryStatistics get_fwd_iat() const { return fwd_iat; }
+    void set_fwd_iat(const SummaryStatistics &iat) { fwd_iat = iat; }
 
     // Getter and Setter for bwd_iat
-    SummaryStatistics get_bwd_iat() const { return bwd_IAT; }
-    void set_bwd_iat(const SummaryStatistics &iat) { bwd_IAT = iat; }
+    SummaryStatistics get_bwd_iat() const { return bwd_iat; }
+    void set_bwd_iat(const SummaryStatistics &iat) { bwd_iat = iat; }
 
     // Getter and Setter for flow_length_stats
     SummaryStatistics get_flow_length_stats() const { return flow_length_stats; }
@@ -1146,9 +1192,10 @@ public:
     }
 
 private:
-    void update_flow_bulk(BasicPacketInfo &packet)
+    // bulk size is defined as 4 packets
+    void update_flow_bulk(Packet &packet)
     {
-        if (src == packet.get_src_ip())
+        if (src_ip == packet.get_src_ip())
         {
             update_fwd_bulk(packet, bwd_bulk_last_timestamp);
         }
@@ -1158,7 +1205,7 @@ private:
         }
     }
 
-    void update_fwd_bulk(BasicPacketInfo &packet, uint64_t timestamp_of_last_bulk_in_other)
+    void update_fwd_bulk(Packet &packet, uint64_t timestamp_of_last_bulk_in_other)
     {
         uint64_t size = packet.get_payload_bytes();
         if (timestamp_of_last_bulk_in_other > fwd_bulk_start_helper)
@@ -1208,7 +1255,7 @@ private:
         }
     }
 
-    void update_bwd_bulk(BasicPacketInfo &packet, uint64_t timestamp_of_last_bulk_in_other)
+    void update_bwd_bulk(Packet &packet, uint64_t timestamp_of_last_bulk_in_other)
     {
         uint64_t size = packet.get_payload_bytes();
         if (timestamp_of_last_bulk_in_other > bwd_bulk_start_helper)
@@ -1258,7 +1305,7 @@ private:
         }
     }
 
-    void detect_update_subflows(BasicPacketInfo &packet)
+    void detect_update_subflows(Packet &packet)
     {
         if (subflow_last_packet_timestamp == -1)
         {
@@ -1375,4 +1422,4 @@ private:
         return 0;
     }
 };
-#endif // BASIC_FLOW_H
+#endif // _FLOW_H

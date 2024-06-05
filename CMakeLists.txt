@@ -15,7 +15,7 @@ FetchContent_MakeAvailable(googletest)
 
 # Add your source files here
 set(SOURCES
-    src/pcap2csv.cpp
+    src/main.cpp
 )
 
 # Add any additional libraries or dependencies here
@@ -32,11 +32,11 @@ target_link_libraries(pcap2csv ${LIBRARIES})
 
 # List your test source files here
 set(TEST_SOURCES
-    test/test_basic_packet_info.cpp
-    test/test_flow_feature.cpp
-    test/test_main.cpp
-    test/test_flow_generator.cpp
     # Add more test files as needed
+    test/test_main.cpp
+    test/test_feature.cpp
+    test/test_packet.cpp
+    test/test_flow.cpp
 )
 
 # Include test files in build

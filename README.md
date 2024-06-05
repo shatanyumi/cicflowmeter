@@ -3,6 +3,7 @@ This is a C++ version of CICFlowmeter-V4.0 (formerly known as ISCXFlowMeter) - a
 
 ## reference
 
+- [altrans competition tool](https://github.com/AItransCompetition/DDoS-Detection-Challenge/blob/main/pcap2csv.cpp)
 - [cicflowmeter python version](https://github.com/hieulw/cicflowmeter)
 - [cicflowmeter java version](https://github.com/ahlashkari/CICFlowMeter)
 

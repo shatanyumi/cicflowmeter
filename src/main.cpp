@@ -196,6 +196,7 @@ int main(int argc, char **argv)
         }
 
         // Set label for the flow
+        /// TODO: Maybe the label has some relation with the flow timestamp
         auto flow_it = current_flows.find(packet->fwd_flow_id());
         if (flow_it != current_flows.end())
         {

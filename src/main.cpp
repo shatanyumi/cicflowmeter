@@ -1,4 +1,4 @@
-#include <CMDLine.h>
+#include <cmdline.h>
 
 int tcp_timeout = 600;
 int udp_timeout = 600;
